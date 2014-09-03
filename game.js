@@ -12,15 +12,15 @@ function get_tile(x, y) {
 		 				   + "/div[@class='tile-inner']/text()";
 	var res;
 	if((res = document.evaluate(xpath_tile_merged, document, null, XPathResult.ANY_TYPE, null).iterateNext()) != null) {
-		return res;
+		return parseInt(res.data);
 	}
 
 	if((res = document.evaluate(xpath_tile_new, document, null, XPathResult.ANY_TYPE, null).iterateNext()) != null) {
-		return res;
+		return parseInt(res.data);
 	}
 
 	if((res = document.evaluate(xpath_basic, document, null, XPathResult.ANY_TYPE, null).iterateNext()) != null) {
-		return res;
+		return parseInt(res.data);
 	}
 
 	return null;
@@ -28,9 +28,9 @@ function get_tile(x, y) {
 
 function get_tiles_template() {
 	var game = {};
-	for (i = 1; i <= 4; i++) {
+	for (i = 0; i <= 5; i++) {
 		game[i] = {}
-		for (j = 1; j <= 4; j++) {
+		for (j = 0; j <= 5; j++) {
 			game[i][j] = null;
 		}
 	}
@@ -117,21 +117,83 @@ function merge(direction, tiles) {
 	switch(direction) {
 		case "down": {
 			for(column = 1; column <= 4; column ++) {
-				curr_row = 4;
-				for(row = 4; row > 1; row --) {
+				curr_row = 4
+				for(row = 4; row >= 1; row --) {
 					if(tiles[row][column] == null) {
 						continue;
 					}
-					if(tiles[row][column] == tiles[row + 1][column]) {
+
+					ahead_row = row - 1;
+					while(ahead_row > 1 && tiles[ahead_row][column] == null) {
+						ahead_row --;
+					}
+
+					if(tiles[row][column] == tiles[ahead_row][column]) {
 						new_tile[curr_row][column] = 2 * tiles[row][column];
-						row ++;
+						row = ahead_row;
 					} else {
 						new_tile[curr_row][column] = tiles[row][column];
 					}
+
 					curr_row --;
+				}
+			}
+		}
+		case "up": {
+			for(column = 1; column <= 4; column ++) {
+				curr_row = 1
+				for(row = 1; row <= 4; row ++) {
+					console.info(row.toString() + " : " + column.toString());
+					console.info(curr_row);
+					if(tiles[row][column] == null) {
+						continue;
+					}
+
+					ahead_row = row + 1;
+					while(ahead_row < 4 && tiles[ahead_row][column] == null) {
+						ahead_row ++;
+					}
+
+					if(tiles[row][column] == tiles[ahead_row][column]) {
+						new_tile[curr_row][column] = 2 * tiles[row][column];
+						row = ahead_row;
+					} else {
+						new_tile[curr_row][column] = tiles[row][column];
+					}
+
+					curr_row ++;
+				}
+			}
+		}
+		case "left": {
+			for(row = 1; row <= 4; row ++) {
+				curr_col = 4
+				for(column = 1; column <= 4; column ++) {
+					console.info(row.toString() + " : " + column.toString());
+					console.info(curr_col);
+					if(tiles[row][column] == null) {
+						continue;
+					}
+
+					ahead_col = column - 1;
+					while(ahead_col > 1 && tiles[ahead_col][column] == null) {
+						ahead_col --;
+					}
+
+					if(tiles[row][column] == tiles[ahead_col][column]) {
+						new_tile[curr_col][column] = 2 * tiles[row][column];
+						row = ahead_col;
+					} else {
+						new_tile[curr_col][column] = tiles[row][column];
+					}
+
+					curr_col --;
 				}
 			}
 		}
 	}
 	return new_tile;
 }
+
+t = get_tiles()
+tt = merge("up", t)
