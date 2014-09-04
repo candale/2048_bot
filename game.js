@@ -167,7 +167,7 @@ function merge(direction, tiles) {
 		}
 		case "left": {
 			for(row = 1; row <= 4; row ++) {
-				curr_col = 4
+				curr_col = 1
 				for(column = 1; column <= 4; column ++) {
 					console.info(row.toString() + " : " + column.toString());
 					console.info(curr_col);
@@ -175,16 +175,44 @@ function merge(direction, tiles) {
 						continue;
 					}
 
+					ahead_col = column + 1;
+					while(ahead_col < 4 && tiles[row][ahead_col] == null) {
+						ahead_col ++;
+					}
+
+					if(tiles[row][column] == tiles[row][ahead_col]) {
+						new_tile[row][curr_col] = 2 * tiles[row][column];
+						column = ahead_col;
+					} else {
+						new_tile[row][curr_col] = tiles[row][column];
+					}
+
+					curr_col ++;
+				}
+			}
+		}
+
+		// if there is only one value on right, and you move it to the left it moves the value to the left but the other value remains
+		case "right": {
+			for(row = 1; row <= 4; row ++) {
+				curr_col = 4
+				for(column = 4; column >= 1; column --) {
+					console.info(row.toString() + " : " + column.toString());
+					console.info(curr_col);
+					if(tiles[row][column] == null) {
+						continue;
+					}
+
 					ahead_col = column - 1;
-					while(ahead_col > 1 && tiles[ahead_col][column] == null) {
+					while(ahead_col > 1 && tiles[row][ahead_col] == null) {
 						ahead_col --;
 					}
 
-					if(tiles[row][column] == tiles[ahead_col][column]) {
-						new_tile[curr_col][column] = 2 * tiles[row][column];
-						row = ahead_col;
+					if(tiles[row][column] == tiles[row][ahead_col]) {
+						new_tile[row][curr_col] = 2 * tiles[row][column];
+						column = ahead_col;
 					} else {
-						new_tile[curr_col][column] = tiles[row][column];
+						new_tile[row][curr_col] = tiles[row][column];
 					}
 
 					curr_col --;
@@ -196,4 +224,4 @@ function merge(direction, tiles) {
 }
 
 t = get_tiles()
-tt = merge("up", t)
+tt = merge("left", t)
