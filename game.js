@@ -1,3 +1,33 @@
+function fireKey(el)
+{
+    var key;
+    switch(el)
+    {
+        case "left":
+        key = 37;
+        break;
+        case "right":
+        key = 39;
+        break;  
+        case "up":
+        key = 38;
+        break;
+        case "down":
+        key = 40;  
+    }
+ 
+    if(document.createEventObject) {
+        var eventObj = document.createEventObject();
+        eventObj.keyCode = key;
+        el.fireEvent("onkeydown", eventObj);  
+    } else if(document.createEvent) {
+        var eventObj = document.createEvent("Events");
+        eventObj.initEvent("keydown", true, true);
+        eventObj.which = key;
+        document.body.dispatchEvent(eventObj);
+    }
+}
+
 function get_tile(x, y) {
 	var xpath_tile_new ="/html/body/div[@class='container']/div[@class='game-container']"
 		 				   + "/div[@class='tile-container']/div[contains(@class,'tile-position-" + x.toString() + "-" + y.toString() + " tile-new')]"
@@ -138,13 +168,12 @@ function merge(direction, tiles) {
 					curr_row --;
 				}
 			}
+			break;
 		}
 		case "up": {
 			for(column = 1; column <= 4; column ++) {
 				curr_row = 1
 				for(row = 1; row <= 4; row ++) {
-					console.info(row.toString() + " : " + column.toString());
-					console.info(curr_row);
 					if(tiles[row][column] == null) {
 						continue;
 					}
@@ -164,13 +193,12 @@ function merge(direction, tiles) {
 					curr_row ++;
 				}
 			}
+			break;
 		}
 		case "left": {
 			for(row = 1; row <= 4; row ++) {
 				curr_col = 1
 				for(column = 1; column <= 4; column ++) {
-					console.info(row.toString() + " : " + column.toString());
-					console.info(curr_col);
 					if(tiles[row][column] == null) {
 						continue;
 					}
@@ -190,6 +218,7 @@ function merge(direction, tiles) {
 					curr_col ++;
 				}
 			}
+			break;
 		}
 
 		// if there is only one value on right, and you move it to the left it moves the value to the left but the other value remains
@@ -197,8 +226,6 @@ function merge(direction, tiles) {
 			for(row = 1; row <= 4; row ++) {
 				curr_col = 4
 				for(column = 4; column >= 1; column --) {
-					console.info(row.toString() + " : " + column.toString());
-					console.info(curr_col);
 					if(tiles[row][column] == null) {
 						continue;
 					}
@@ -219,9 +246,63 @@ function merge(direction, tiles) {
 				}
 			}
 		}
+		break;
 	}
 	return new_tile;
 }
 
-t = get_tiles()
-tt = merge("left", t)
+
+function eval(tiles) {
+	var sum = 0;
+	for(row = 1; row <= 4; row ++) {
+		for(column = 1; column <= 4; column ++) {
+			if((val = tiles[row][column]) != null) {
+				sum += val * val / 2048;
+			}
+		}
+	}
+
+	return sum;
+}
+
+function get_direction(tiles, depth) {
+	depth = depth || 3;
+
+	vals = ["left", "right", "up", "down"];
+	var max = 0;
+	var max_dir = "";
+
+	for(k = 0; k < 4; k ++) {
+		var tmp_max = eval(merge(vals[k], tiles));
+		if(tmp_max > max) {
+			max = tmp_max;
+			max_dir = vals[k];
+		}
+	}
+
+	console.info(max_dir);
+	return max_dir;
+}
+
+function sleep(millis) {
+    setTimeout(function() { console.info("another button press") }, millis);
+}
+
+function compare(first, second) {
+	for(row = 1; row <= 4; row ++) {
+		for(column = 1; column <= 4; column ++) {
+			if(first[row][column] != second[row][column]) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+function do_work() {
+	curr_tiles = get_tiles();
+	fireKey(get_direction(curr_tiles));
+}
+
+setInterval(do_work, 500);
