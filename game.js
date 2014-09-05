@@ -268,18 +268,11 @@ function eval(tiles) {
 function get_direction(tiles, depth) {
 	depth = depth || 3;
 
-	vals = ["left", "right", "up", "down"];
+	vals = ["right", "up", "down", "left" ];
 	var max = 0;
 	var max_dir = "";
 
-	for(k = 0; k < 4; k ++) {
-		new_tiles = merge(vals[k], tiles);
-		var tmp_max = eval(new_tiles);
-		if(tmp_max > max && !compare(tiles, new_tiles)) {
-			max = tmp_max;
-			max_dir = vals[k];
-		}
-	}
+	// write AI engine
 
 	console.info(max_dir);
 	return max_dir;
@@ -303,4 +296,4 @@ function do_work() {
 	fireKey(get_direction(curr_tiles));
 }
 
-setInterval(do_work, 300);
+setInterval(do_work, 10000);
