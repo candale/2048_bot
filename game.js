@@ -273,8 +273,9 @@ function get_direction(tiles, depth) {
 	var max_dir = "";
 
 	for(k = 0; k < 4; k ++) {
-		var tmp_max = eval(merge(vals[k], tiles));
-		if(tmp_max > max) {
+		new_tiles = merge(vals[k], tiles);
+		var tmp_max = eval(new_tiles);
+		if(tmp_max > max && !compare(tiles, new_tiles)) {
 			max = tmp_max;
 			max_dir = vals[k];
 		}
@@ -284,9 +285,6 @@ function get_direction(tiles, depth) {
 	return max_dir;
 }
 
-function sleep(millis) {
-    setTimeout(function() { console.info("another button press") }, millis);
-}
 
 function compare(first, second) {
 	for(row = 1; row <= 4; row ++) {
@@ -305,4 +303,4 @@ function do_work() {
 	fireKey(get_direction(curr_tiles));
 }
 
-setInterval(do_work, 500);
+setInterval(do_work, 300);
