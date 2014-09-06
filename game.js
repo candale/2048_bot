@@ -1,3 +1,8 @@
+/* =================== CONSTANTS ========================== */
+var TILE_EVAL_BASE = 4;
+var TILE_EVAL_COEF = 0.5;
+
+
 function fireKey(el)
 {
     var key;
@@ -64,6 +69,7 @@ function get_tiles_template() {
 			game[i][j] = null;
 		}
 	}
+	game.direction = "new";
 	return game;
 }
 
@@ -142,18 +148,23 @@ function stack(direction, tiles) {
 	return new_tile
 }
 
-function merge(direction, tiles) {
-	new_tile = get_tiles_template()
+function merge(direction, tiles, cmp) {
+	if(!direction || !tiles) {
+		console.error("direction or tiles came wrong");
+		return null;
+	}
+	cmp = cmp || false;
+	var new_tile = get_tiles_template()
 	switch(direction) {
 		case "down": {
-			for(column = 1; column <= 4; column ++) {
-				curr_row = 4
+			for(var column = 1; column <= 4; column ++) {
+				var curr_row = 4
 				for(row = 4; row >= 1; row --) {
 					if(tiles[row][column] == null) {
 						continue;
 					}
 
-					ahead_row = row - 1;
+					var ahead_row = row - 1;
 					while(ahead_row > 1 && tiles[ahead_row][column] == null) {
 						ahead_row --;
 					}
@@ -168,17 +179,18 @@ function merge(direction, tiles) {
 					curr_row --;
 				}
 			}
+			new_tile.direction = "down";
 			break;
 		}
 		case "up": {
-			for(column = 1; column <= 4; column ++) {
-				curr_row = 1
-				for(row = 1; row <= 4; row ++) {
+			for(var column = 1; column <= 4; column ++) {
+				var curr_row = 1
+				for(var row = 1; row <= 4; row ++) {
 					if(tiles[row][column] == null) {
 						continue;
 					}
 
-					ahead_row = row + 1;
+					var ahead_row = row + 1;
 					while(ahead_row < 4 && tiles[ahead_row][column] == null) {
 						ahead_row ++;
 					}
@@ -193,17 +205,18 @@ function merge(direction, tiles) {
 					curr_row ++;
 				}
 			}
+			new_tile.direction = "up";
 			break;
 		}
 		case "left": {
-			for(row = 1; row <= 4; row ++) {
+			for(var row = 1; row <= 4; row ++) {
 				curr_col = 1
-				for(column = 1; column <= 4; column ++) {
+				for(var column = 1; column <= 4; column ++) {
 					if(tiles[row][column] == null) {
 						continue;
 					}
 
-					ahead_col = column + 1;
+					var ahead_col = column + 1;
 					while(ahead_col < 4 && tiles[row][ahead_col] == null) {
 						ahead_col ++;
 					}
@@ -218,19 +231,20 @@ function merge(direction, tiles) {
 					curr_col ++;
 				}
 			}
+			new_tile.direction = "left";
 			break;
 		}
 
 		// if there is only one value on right, and you move it to the left it moves the value to the left but the other value remains
 		case "right": {
-			for(row = 1; row <= 4; row ++) {
-				curr_col = 4
-				for(column = 4; column >= 1; column --) {
+			for(var row = 1; row <= 4; row ++) {
+				var curr_col = 4
+				for(var column = 4; column >= 1; column --) {
 					if(tiles[row][column] == null) {
 						continue;
 					}
 
-					ahead_col = column - 1;
+					var ahead_col = column - 1;
 					while(ahead_col > 1 && tiles[row][ahead_col] == null) {
 						ahead_col --;
 					}
@@ -246,8 +260,15 @@ function merge(direction, tiles) {
 				}
 			}
 		}
+		new_tile.direction = "right";
 		break;
 	}
+
+	// return null if the new tile is identical with the old one tile-wise or eval-wise
+	if(compare(tiles, new_tile) ) { // || eval(tiles) == eval(new_tile)
+		return null;
+	}
+
 	return new_tile;
 }
 
@@ -265,17 +286,70 @@ function eval(tiles) {
 	return sum;
 }
 
-function get_direction(tiles, depth) {
-	depth = depth || 3;
+function eval_no_tiles(tiles) {
+	var no_tiles = 0;
+	for(var i = 1; i <= 4; i++) {
+		for(var j = 1; j <= 4; j++) {
+			if(tiles[i][j] != null) {
+				no_tiles ++;
+			}
+		}
+	}
 
-	vals = ["right", "up", "down", "left" ];
-	var max = 0;
-	var max_dir = "";
+	return TILE_EVAL_COEF * Math.pow(TILE_EVAL_BASE, no_tiles);
+}
 
-	// write AI engine
 
-	console.info(max_dir);
-	return max_dir;
+
+function shuffle(tiles) {
+	var dirs = ["right", "up", "down", "left"];
+	var res = [];
+	for(var index in dirs) {
+		var new_tiles = merge(dirs[index], tiles);
+		if(!compare(tiles, new_tiles)) {
+			new_tiles.direction = dirs[index];
+			res.push(new_tiles);
+		}
+	}
+
+	return res;
+}
+
+function debug(str, obj) {
+	console.info(str);
+	console.debug(obj);
+}
+
+function get_node(tiles) {
+	if(tiles == null) {
+		return null;
+	}
+	var obj = new Object();
+	obj.direction = "init";
+	obj.tiles = tiles;
+	obj.left = null;
+	obj.right = null;;
+	obj.left = null;
+	obj.up = null;
+	obj.parent = null;
+
+	return obj;
+}
+
+function print_tiles(tiles) {
+	var res = "direction: " + tiles.direction + "\n";
+	for(i = 1; i <= 4; i ++) {
+		var str = ""
+		for(j = 1; j <= 4; j++) {
+			if(tiles[i][j] != null) {
+				str += tiles[i][j].toString() + "    ";
+			} else {
+				str += "na    ";
+			}
+		}
+		res += str + "\n";
+	}
+	console.info(res);
 }
 
 
@@ -291,9 +365,99 @@ function compare(first, second) {
 	return true;
 }
 
+function build_tree(tiles, depth) {
+	var no = 0;
+	depth = depth ? Math.pow(4, depth) : Math.pow(4, 3);
+
+	var tree = get_node(tiles);
+	var queue = [tree];
+
+	while(queue.length && depth) {
+		// get current node from which to expand and the related values
+		var current_node = queue.pop();
+		// put the shuffled tiles in the tree;
+		// create new node for the newly created tiles (sh_tiles)
+		l_obj = get_node(merge("left",current_node.tiles));
+		r_obj = get_node(merge("right",current_node.tiles));
+		u_obj = get_node(merge("up",current_node.tiles));
+		d_obj = get_node(merge("down",current_node.tiles));
+		if(l_obj != null) {
+			queue.push(l_obj);
+			current_node.left = l_obj;
+			l_obj.parent = current_node;
+			no++;
+			// print_tiles(l_obj.tiles);
+		}
+
+		if(r_obj != null) {
+			queue.push(r_obj);
+			current_node.right = r_obj;
+			r_obj.parent = current_node;
+			no++;
+			// print_tiles(r_obj.tiles);
+		}
+
+		if(u_obj != null) {
+			queue.push(u_obj);
+			current_node.up = u_obj;
+			u_obj.parent = current_node;
+			no++;
+			// print_tiles(u_obj.tiles);
+		}
+
+		if(d_obj != null) {
+			queue.push(d_obj);
+			current_node.down = d_obj;
+			d_obj.parent = current_node;
+			no++;
+			// print_tiles(d_obj.tiles);
+		}
+
+		depth--;
+	}
+
+	console.error("number of nodes: " + no.toString());
+	return tree;
+}
+
+function get_path(tree) {
+	queue = [tree];
+	while(queue.length) {
+		current = queue.pop();
+		if(current.left != null) {
+			queue.push(current.left);
+		}
+
+		if(current.right != null) {
+			queue.push(current.left);
+		}
+
+		if(current.up != null) {
+			queue.push(current.left);
+		}
+
+		if(current.down != null) {
+			queue.push(current.left);
+		}
+	}
+}
+
+function get_path() {
+	best_sol = {"eval" : "0", "path" : null}
+	tree = build_tree(get_tiles());
+
+}
+
 function do_work() {
 	curr_tiles = get_tiles();
 	fireKey(get_direction(curr_tiles));
 }
+
+/*
+
+Create all graph, find best path with the two evaluation functions; holdd that path until a best one is found.
+Problems: will a better one arrive? If the current one stays for long, tiles will gather and the new path should be focused more on clearing the tiles.
+
+*/
 
 setInterval(do_work, 10000);
