@@ -1,7 +1,7 @@
 /* =================== CONSTANTS ========================== */
-var TILE_EVAL_BASE = 4;
-var TILE_EVAL_COEF = 0.5;
-
+var TILE_EVAL_BASE = 4; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
+var TILE_EVAL_COEF = 0.5; // so that the algorithm would choose the path that minimises the number of tiles
+var LR_STRATEGY_COEF = 2; // the coeficinet for choosing a move in the set (right, up, down) so that all values remain in a corners
 
 function fireKey(el)
 {
