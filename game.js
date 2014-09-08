@@ -1,7 +1,19 @@
+
+
 /* =================== CONSTANTS ========================== */
 var TILE_EVAL_BASE = 4; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
 var TILE_EVAL_COEF = 0.5; // so that the algorithm would choose the path that minimises the number of tiles
 var LR_STRATEGY_COEF = 2; // the coeficinet for choosing a move in the set (right, up, down) so that all values remain in a corners
+
+
+
+
+/*
+
+Create all graph, find best path with the two evaluation functions; holdd that path until a best one is found.
+Problems: will a better one arrive? If the current one stays for long, tiles will gather and the new path should be focused more on clearing the tiles.
+
+*/
 
 function fireKey(el)
 {
@@ -325,24 +337,46 @@ function get_node(tiles) {
 		return null;
 	}
 	var obj = new Object();
-	obj.direction = "init";
+	obj.direction = tiles.direction || "init";
 	obj.tiles = tiles;
 	obj.left = null;
 	obj.right = null;;
 	obj.left = null;
 	obj.up = null;
 	obj.parent = null;
+	obj.fit = 0;
+	obj.no = 0;
 
 	return obj;
 }
 
-function print_tiles(tiles) {
+function print_tiles(tiles, fit) {
+	fit = fit || 0;
 	var res = "direction: " + tiles.direction + "\n";
+	res += "fitness: " + fit.toString() + "\n";
 	for(i = 1; i <= 4; i ++) {
 		var str = ""
 		for(j = 1; j <= 4; j++) {
 			if(tiles[i][j] != null) {
 				str += tiles[i][j].toString() + "    ";
+			} else {
+				str += "na    ";
+			}
+		}
+		res += str + "\n";
+	}
+	console.info(res);
+}
+
+function print_tiles_obj(obj) {
+	var res = "direction: " + obj.tiles.direction + "\n";
+	res += "fitness: " + obj.fit.toString() + "\n";
+	res += "order number: " + obj.no.toString() + "\n";
+	for(i = 1; i <= 4; i ++) {
+		var str = ""
+		for(j = 1; j <= 4; j++) {
+			if(obj.tiles[i][j] != null) {
+				str += obj.tiles[i][j].toString() + "    ";
 			} else {
 				str += "na    ";
 			}
@@ -374,90 +408,130 @@ function build_tree(tiles, depth) {
 
 	while(queue.length && depth) {
 		// get current node from which to expand and the related values
-		var current_node = queue.pop();
+		var current_node = queue.shift();
 		// put the shuffled tiles in the tree;
 		// create new node for the newly created tiles (sh_tiles)
-		l_obj = get_node(merge("left",current_node.tiles));
-		r_obj = get_node(merge("right",current_node.tiles));
-		u_obj = get_node(merge("up",current_node.tiles));
-		d_obj = get_node(merge("down",current_node.tiles));
+		var r_obj = get_node(merge("right",current_node.tiles));
+		var u_obj = get_node(merge("up",current_node.tiles));
+		if(r_obj == null && u_obj == null) {
+			var d_obj = get_node(merge("down",current_node.tiles));
+			if(d_obj == null) {
+				var l_obj = get_node(merge("left",current_node.tiles));
+			}
+		}
 		if(l_obj != null) {
-			queue.push(l_obj);
+			l_obj.fit = eval(l_obj.tiles); // * eval_no_tiles(l_obj.tiles);
 			current_node.left = l_obj;
 			l_obj.parent = current_node;
+			l_obj.no = no;
+			queue.push(l_obj);
 			no++;
-			// print_tiles(l_obj.tiles);
+			// print_tiles_obj(l_obj);
 		}
 
 		if(r_obj != null) {
-			queue.push(r_obj);
+			r_obj.fit = eval(r_obj.tiles); // * eval_no_tiles(r_obj.tiles);
 			current_node.right = r_obj;
 			r_obj.parent = current_node;
+			r_obj.no = no;
+			queue.push(r_obj);
 			no++;
-			// print_tiles(r_obj.tiles);
+			// print_tiles_obj(r_obj);
 		}
 
 		if(u_obj != null) {
-			queue.push(u_obj);
+			u_obj.fit = eval(u_obj.tiles); // * eval_no_tiles(u_obj.tiles);
 			current_node.up = u_obj;
 			u_obj.parent = current_node;
+			u_obj.no = no;
+			queue.push(u_obj);
 			no++;
-			// print_tiles(u_obj.tiles);
+			// print_tiles_obj(u_obj);
 		}
 
 		if(d_obj != null) {
-			queue.push(d_obj);
+			d_obj.fit = eval(d_obj.tiles); //* eval_no_tiles(d_obj.tiles);
 			current_node.down = d_obj;
 			d_obj.parent = current_node;
+			d_obj.no = no;
+			queue.push(d_obj);
 			no++;
-			// print_tiles(d_obj.tiles);
+			// print_tiles_obj(d_obj);
 		}
 
 		depth--;
 	}
 
-	console.error("number of nodes: " + no.toString());
+	tree.parent = null;
+
+	//console.error("number of nodes: " + no.toString());
 	return tree;
 }
 
 function get_path(tree) {
-	queue = [tree];
+	console.debug(tree);
+	var queue = [tree];
+	var max_node = get_node(get_tiles_template());
+	var no = 0;
 	while(queue.length) {
-		current = queue.pop();
-		if(current.left != null) {
+		no++;
+		var current = queue.shift();
+
+		if(max_node.fit < current.fit) {
+			max_node = current;
+		}
+
+		if(current.left != null)  {
 			queue.push(current.left);
 		}
 
 		if(current.right != null) {
-			queue.push(current.left);
+			queue.push(current.right);
 		}
 
-		if(current.up != null) {
-			queue.push(current.left);
+		if(current.up != null)    {
+			queue.push(current.up);
 		}
 
-		if(current.down != null) {
-			queue.push(current.left);
+		if(current.down != null)  {
+			queue.push(current.down);
 		}
 	}
+
+	var path = new Object();
+	path.dirs = [];
+	path.fit = max_node.fit;
+	console.debug(max_node);
+	print_tiles_obj(max_node);
+	return;
+	while(max_node != null) {
+		console.info(1);
+		path.dirs.unshift(max_node.direction);
+		max_node = max_node.parent;
+	}
+	path.dirs.shift();
+
+	return path;
 }
 
-function get_path() {
-	best_sol = {"eval" : "0", "path" : null}
-	tree = build_tree(get_tiles());
 
+var current_path = new Object();
+current_path.dirs = [];
+current_path.fit = 0;
+var func = function()  {
+	latest_path = null;
+	tiles_wrk = get_tiles();
+	tree_wrk = build_tree(tiles_wrk);
+	latest_path = get_path(tree_wrk);
+
+	if(current_path.fit < latest_path.fit) {
+		current_path = latest_path;
+	}
+
+	var dir = current_path.dirs.shift();
+	console.info(dir);
+	fireKey(dir);
 }
 
-function do_work() {
-	curr_tiles = get_tiles();
-	fireKey(get_direction(curr_tiles));
-}
 
-/*
-
-Create all graph, find best path with the two evaluation functions; holdd that path until a best one is found.
-Problems: will a better one arrive? If the current one stays for long, tiles will gather and the new path should be focused more on clearing the tiles.
-
-*/
-
-setInterval(do_work, 10000);
+setInterval(func, 500);
