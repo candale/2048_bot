@@ -1,9 +1,14 @@
 
 
 /* =================== CONSTANTS ========================== */
-var TILE_EVAL_BASE = 4; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
+var TILE_EVAL_BASE = 3; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
 var TILE_EVAL_COEF = 0.5; // so that the algorithm would choose the path that minimises the number of tiles
 var LR_STRATEGY_COEF = 2; // the coeficinet for choosing a move in the set (right, up, down) so that all values remain in a corners
+var UP_COEF = 15;
+var RIGHT_COEF = 5;
+var DOWN_COEF = 1;
+var LEFT_COEF = 0.5;
+var RESET_NUMBER = 3;
 
 
 
@@ -295,6 +300,13 @@ function eval(tiles) {
 		}
 	}
 
+	switch(tiles.direction) {
+		case "down" : sum = sum * DOWN_COEF; break;
+		case "up"   : sum = sum * UP_COEF; break;
+		case "left" : sum = sum * LEFT_COEF; break;
+		case "right": sum = sum * RIGHT_COEF; break;
+	}
+
 	return sum;
 }
 
@@ -308,7 +320,9 @@ function eval_no_tiles(tiles) {
 		}
 	}
 
-	return TILE_EVAL_COEF * Math.pow(TILE_EVAL_BASE, no_tiles);
+	RESET_NUMBER = 16 - no_tiles >= 8 ? 3 : 16 - no_tiles >= 4 ? 2 : 16 - no_tiles < 4 ? 1 : 3;
+
+	return 5 * ( 5 - RESET_NUMBER) * Math.pow(TILE_EVAL_BASE, 16 - no_tiles);
 }
 
 
@@ -408,55 +422,59 @@ function build_tree(tiles, depth) {
 
 	while(queue.length && depth) {
 		// get current node from which to expand and the related values
-		var current_node = queue.shift();
+		var d_obj, l_obj, u_obj, r_obj;
+		d_obj = l_obj = r_obj = u_obj = null;
+		current_node = queue.shift();
 		// put the shuffled tiles in the tree;
 		// create new node for the newly created tiles (sh_tiles)
-		var r_obj = get_node(merge("right",current_node.tiles));
-		var u_obj = get_node(merge("up",current_node.tiles));
-		if(r_obj == null && u_obj == null) {
-			var d_obj = get_node(merge("down",current_node.tiles));
-			if(d_obj == null) {
-				var l_obj = get_node(merge("left",current_node.tiles));
-			}
+		r_obj = get_node(merge("right",current_node.tiles));
+		u_obj = get_node(merge("up",current_node.tiles));
+		d_obj = get_node(merge("down",current_node.tiles));
+		if(r_obj == null && u_obj == null && d_obj == null) {
+			l_obj = get_node(merge("left",current_node.tiles));
 		}
 		if(l_obj != null) {
-			l_obj.fit = eval(l_obj.tiles); // * eval_no_tiles(l_obj.tiles);
+			no++;
+			l_obj.fit = eval(l_obj.tiles) * eval_no_tiles(l_obj.tiles);
 			current_node.left = l_obj;
 			l_obj.parent = current_node;
 			l_obj.no = no;
 			queue.push(l_obj);
-			no++;
 			// print_tiles_obj(l_obj);
+			// console.info("parent: " + current_node.no);
 		}
 
 		if(r_obj != null) {
-			r_obj.fit = eval(r_obj.tiles); // * eval_no_tiles(r_obj.tiles);
+			no++;
+			r_obj.fit = eval(r_obj.tiles) * eval_no_tiles(r_obj.tiles);
 			current_node.right = r_obj;
 			r_obj.parent = current_node;
 			r_obj.no = no;
 			queue.push(r_obj);
-			no++;
 			// print_tiles_obj(r_obj);
+			// console.info("parent: " + current_node.no);
 		}
 
 		if(u_obj != null) {
-			u_obj.fit = eval(u_obj.tiles); // * eval_no_tiles(u_obj.tiles);
+			no++;
+			u_obj.fit = eval(u_obj.tiles) * eval_no_tiles(u_obj.tiles);
 			current_node.up = u_obj;
 			u_obj.parent = current_node;
 			u_obj.no = no;
 			queue.push(u_obj);
-			no++;
 			// print_tiles_obj(u_obj);
+			// console.info("parent: " + current_node.no);
 		}
 
 		if(d_obj != null) {
-			d_obj.fit = eval(d_obj.tiles); //* eval_no_tiles(d_obj.tiles);
+			no++;
+			d_obj.fit = eval(d_obj.tiles) * eval_no_tiles(d_obj.tiles);
 			current_node.down = d_obj;
 			d_obj.parent = current_node;
 			d_obj.no = no;
 			queue.push(d_obj);
-			no++;
 			// print_tiles_obj(d_obj);
+			// console.info("parent: " + current_node.no);
 		}
 
 		depth--;
@@ -501,9 +519,8 @@ function get_path(tree) {
 	var path = new Object();
 	path.dirs = [];
 	path.fit = max_node.fit;
-	console.debug(max_node);
-	print_tiles_obj(max_node);
-	return;
+	// console.debug(max_node);
+	// print_tiles_obj(max_node);
 	while(max_node != null) {
 		console.info(1);
 		path.dirs.unshift(max_node.direction);
@@ -518,19 +535,30 @@ function get_path(tree) {
 var current_path = new Object();
 current_path.dirs = [];
 current_path.fit = 0;
+var k = 2;
 var func = function()  {
 	latest_path = null;
 	tiles_wrk = get_tiles();
-	tree_wrk = build_tree(tiles_wrk);
+	tree_wrk = build_tree(tiles_wrk, 4);
 	latest_path = get_path(tree_wrk);
 
-	if(current_path.fit < latest_path.fit) {
+
+	console.info("current fit: " + current_path.fit);
+	console.info("current path: " + current_path.dirs.toString());
+
+	if(k == 0 || current_path.fit < latest_path.fit) { //  ||
 		current_path = latest_path;
+		console.info("changed");
+		console.info("current fit: " + current_path.fit);
+		console.info("current path: " + current_path.dirs.toString());
+		k = RESET_NUMBER;
 	}
+
 
 	var dir = current_path.dirs.shift();
 	console.info(dir);
 	fireKey(dir);
+	k--;
 }
 
 
