@@ -1,15 +1,21 @@
 
 
 /* =================== CONSTANTS ========================== */
-var TILE_EVAL_BASE = 3; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
-var TILE_EVAL_COEF = 0.5; // so that the algorithm would choose the path that minimises the number of tiles
-var LR_STRATEGY_COEF = 2; // the coeficinet for choosing a move in the set (right, up, down) so that all values remain in a corners
-var UP_COEF = 15;
-var RIGHT_COEF = 5;
-var DOWN_COEF = 1;
-var LEFT_COEF = 0.5;
-var RESET_NUMBER = 3;
+// var TILE_EVAL_BASE = 3; // these two values are used as coeficient for the number of tiles. the more tiles there are, the greater the coeficient
+// var TILE_EVAL_COEF = 0.5; // so that the algorithm would choose the path that minimises the number of tiles
+// var LR_STRATEGY_COEF = 2; // the coeficinet for choosing a move in the set (right, up, down) so that all values remain in a corners
+// var UP_COEF = 15;
+// var RIGHT_COEF = 5;
+// var DOWN_COEF = 1;
+// var LEFT_COEF = 0.5;
+// var RESET_NUMBER = 3;
 
+// keep these values between 0 and 1 for the coeficients that represent bad behaviour
+var CORNER_TILE_COEF_BAD = 0.02;
+var DIRECTION_LEFT_COEF = 0.5;
+
+// keep these values over 1 for the coeficients that represnt good behaviour
+var CORNER_TILE_COEF_GOOD = 1.25;
 
 
 
@@ -291,38 +297,45 @@ function merge(direction, tiles, cmp) {
 
 
 function eval(tiles) {
+	function get_tile_obj() {
+		var obj = new Object();
+		obj.x = 0;
+		obj.y = 0;
+		obj.value = 0;
+
+		return obj;
+	}
+
+	var max = get_tile_obj();
 	var sum = 0;
 	for(row = 1; row <= 4; row ++) {
 		for(column = 1; column <= 4; column ++) {
 			if((val = tiles[row][column]) != null) {
 				sum += val * val / 2048;
+
+				// for corner high tile
+				if(max.value < tiles[row][column]) {
+					max.value = tiles[row][column];
+					max.x = row;
+					max.y = column;
+				}
 			}
 		}
 	}
 
-	switch(tiles.direction) {
-		case "down" : sum = sum * DOWN_COEF; break;
-		case "up"   : sum = sum * UP_COEF; break;
-		case "left" : sum = sum * LEFT_COEF; break;
-		case "right": sum = sum * RIGHT_COEF; break;
+	// if the  highest number tile is not in the corner, apply CORNER_TILE_COEF_BAD
+	if( ! (max.x == 1 && max.y == 4 || max.x == 4 && max.y == 4)) {
+		sum =  sum * CORNER_TILE_COEF_BAD;
+	} else {
+		sum = sum + CORNER_TILE_COEF_GOOD;
+	}
+
+	// so that left would not be encouraged
+	if(tiles.direction == "left") {
+		sum = sum * DIRECTION_LEFT_COEF;
 	}
 
 	return sum;
-}
-
-function eval_no_tiles(tiles) {
-	var no_tiles = 0;
-	for(var i = 1; i <= 4; i++) {
-		for(var j = 1; j <= 4; j++) {
-			if(tiles[i][j] != null) {
-				no_tiles ++;
-			}
-		}
-	}
-
-	RESET_NUMBER = 16 - no_tiles >= 8 ? 3 : 16 - no_tiles >= 4 ? 2 : 16 - no_tiles < 4 ? 1 : 3;
-
-	return 5 * ( 5 - RESET_NUMBER) * Math.pow(TILE_EVAL_BASE, 16 - no_tiles);
 }
 
 
@@ -415,7 +428,7 @@ function compare(first, second) {
 
 function build_tree(tiles, depth) {
 	var no = 0;
-	depth = depth ? Math.pow(4, depth) : Math.pow(4, 3);
+	depth = depth || 3;
 
 	var tree = get_node(tiles);
 	var queue = [tree];
@@ -430,12 +443,10 @@ function build_tree(tiles, depth) {
 		r_obj = get_node(merge("right",current_node.tiles));
 		u_obj = get_node(merge("up",current_node.tiles));
 		d_obj = get_node(merge("down",current_node.tiles));
-		if(r_obj == null && u_obj == null && d_obj == null) {
-			l_obj = get_node(merge("left",current_node.tiles));
-		}
+		l_obj = get_node(merge("left",current_node.tiles));
 		if(l_obj != null) {
 			no++;
-			l_obj.fit = eval(l_obj.tiles) * eval_no_tiles(l_obj.tiles);
+			l_obj.fit = eval(l_obj.tiles); //* eval_no_tiles(l_obj.tiles);
 			current_node.left = l_obj;
 			l_obj.parent = current_node;
 			l_obj.no = no;
@@ -446,7 +457,7 @@ function build_tree(tiles, depth) {
 
 		if(r_obj != null) {
 			no++;
-			r_obj.fit = eval(r_obj.tiles) * eval_no_tiles(r_obj.tiles);
+			r_obj.fit = eval(r_obj.tiles); //* eval_no_tiles(r_obj.tiles);
 			current_node.right = r_obj;
 			r_obj.parent = current_node;
 			r_obj.no = no;
@@ -457,7 +468,7 @@ function build_tree(tiles, depth) {
 
 		if(u_obj != null) {
 			no++;
-			u_obj.fit = eval(u_obj.tiles) * eval_no_tiles(u_obj.tiles);
+			u_obj.fit = eval(u_obj.tiles); //* eval_no_tiles(u_obj.tiles);
 			current_node.up = u_obj;
 			u_obj.parent = current_node;
 			u_obj.no = no;
@@ -468,7 +479,7 @@ function build_tree(tiles, depth) {
 
 		if(d_obj != null) {
 			no++;
-			d_obj.fit = eval(d_obj.tiles) * eval_no_tiles(d_obj.tiles);
+			d_obj.fit = eval(d_obj.tiles); //* eval_no_tiles(d_obj.tiles);
 			current_node.down = d_obj;
 			d_obj.parent = current_node;
 			d_obj.no = no;
@@ -499,10 +510,6 @@ function get_path(tree) {
 			max_node = current;
 		}
 
-		if(current.left != null)  {
-			queue.push(current.left);
-		}
-
 		if(current.right != null) {
 			queue.push(current.right);
 		}
@@ -513,6 +520,10 @@ function get_path(tree) {
 
 		if(current.down != null)  {
 			queue.push(current.down);
+		}
+
+		if(current.left != null)  {
+			queue.push(current.left);
 		}
 	}
 
@@ -539,19 +550,19 @@ var k = 2;
 var func = function()  {
 	latest_path = null;
 	tiles_wrk = get_tiles();
-	tree_wrk = build_tree(tiles_wrk, 4);
+	tree_wrk = build_tree(tiles_wrk, 5);
 	latest_path = get_path(tree_wrk);
 
 
 	console.info("current fit: " + current_path.fit);
 	console.info("current path: " + current_path.dirs.toString());
 
-	if(k == 0 || current_path.fit < latest_path.fit) { //  ||
+	if(k == 0 || current_path == null || !current_path.dirs.length)  { // || current_path.fit < latest_path.fit
 		current_path = latest_path;
 		console.info("changed");
 		console.info("current fit: " + current_path.fit);
 		console.info("current path: " + current_path.dirs.toString());
-		k = RESET_NUMBER;
+		k = 3;
 	}
 
 
