@@ -12,10 +12,12 @@
 
 // keep these values between 0 and 1 for the coeficients that represent bad behaviour
 var CORNER_TILE_COEF_BAD = 0.02;
-var DIRECTION_LEFT_COEF = 0.5;
+var DIRECTION_LEFT_COEF = 0.02;
+var HIGH_NUMBERS_DONT_STICK_TOGETHER = 0.7;
 
 // keep these values over 1 for the coeficients that represnt good behaviour
 var CORNER_TILE_COEF_GOOD = 1.25;
+var HIGH_NUMBERS_STICK_TOGETHER = 1.25;
 
 
 
@@ -329,6 +331,35 @@ function eval(tiles) {
 	} else {
 		sum = sum + CORNER_TILE_COEF_GOOD;
 	}
+
+	// eval based on other numbers, high numbers that should be close to the highest number
+	var sec_max = get_tile_obj();
+	var maxs = [max.value];
+	var k = 3;
+
+	while(k) {
+		for(row = 1; row <= 4; row ++) {
+			for(column = 1; column <= 4; column ++) {
+				if(tiles[row][column] != null && sec_max.value < tiles[row][column] && maxs.indexOf(tiles[row][column]) == -1) {
+					sec_max.value = tiles[row][column];
+					sec_max.x = row;
+					sec_max.y = column;
+				}
+			}
+		}
+
+		if(Math.abs(max.x - sec_max.x) <= 1 && Math.abs(max.y - sec_max.y) == 0 || Math.abs(max.x - sec_max.x) == 0 && Math.abs(max.y - sec_max.y) <= 1) {
+			sum = sum * HIGH_NUMBERS_STICK_TOGETHER;
+		} else {
+			sum = sum * HIGH_NUMBERS_DONT_STICK_TOGETHER;
+		}
+
+		maxs.push(sec_max.value);
+		max = sec_max;
+		sec_max = get_tile_obj();
+		k--;
+	}
+	console.info("maxs: " + maxs.toString());
 
 	// so that left would not be encouraged
 	if(tiles.direction == "left") {
