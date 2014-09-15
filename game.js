@@ -11,15 +11,16 @@
 // var RESET_NUMBER = 3;
 
 // keep these values between 0 and 1 for the coeficients that represent bad behaviour
-var CORNER_TILE_COEF_BAD = 0.02;
-var DIRECTION_LEFT_COEF = 0.02;
-var HIGH_NUMBERS_DONT_STICK_TOGETHER = 0.7;
+var CORNER_TILE_COEF_BAD = 0.1;
+var DIRECTION_LEFT_COEF = 0.8;
+var HIGH_NUMBERS_DONT_STICK_TOGETHER = 0.5;
 
 // keep these values over 1 for the coeficients that represnt good behaviour
-var CORNER_TILE_COEF_GOOD = 1.25;
-var HIGH_NUMBERS_STICK_TOGETHER = 1.25;
+var CORNER_TILE_COEF_GOOD = 1.40;
+var HIGH_NUMBERS_STICK_TOGETHER = 1.1;
 
-
+// how many times large than the current fit must the new fit be to drop the old one
+var FIT_MAGNITUDE = 1.3;
 
 /*
 
@@ -299,6 +300,9 @@ function merge(direction, tiles, cmp) {
 
 
 function eval(tiles) {
+	if(tiles == null) {
+		return 0;
+	}
 	function get_tile_obj() {
 		var obj = new Object();
 		obj.x = 0;
@@ -308,12 +312,14 @@ function eval(tiles) {
 		return obj;
 	}
 
+	var no_tiles = 0;
 	var max = get_tile_obj();
 	var sum = 0;
 	for(row = 1; row <= 4; row ++) {
 		for(column = 1; column <= 4; column ++) {
 			if((val = tiles[row][column]) != null) {
 				sum += val * val / 2048;
+				no_tiles++;
 
 				// for corner high tile
 				if(max.value < tiles[row][column]) {
@@ -324,12 +330,20 @@ function eval(tiles) {
 			}
 		}
 	}
+	console.info("initial sum: " + sum.toString());
 
 	// if the  highest number tile is not in the corner, apply CORNER_TILE_COEF_BAD
 	if( ! (max.x == 1 && max.y == 4 || max.x == 4 && max.y == 4)) {
 		sum =  sum * CORNER_TILE_COEF_BAD;
+		console.info("CORNER_TILE_COEF_BAD sum" + sum.toString());
+		// the more tiles there are on the board, the more discouraged is for the biggest tile to leave the corner
+		if(7 - no_tiles < 0) {
+			sum = sum * 1 / (7 - no_tiles) * -1;
+			console.info("there are more than seven tiles sum "  + sum.toString());
+		}
 	} else {
-		sum = sum + CORNER_TILE_COEF_GOOD;
+		sum = sum * CORNER_TILE_COEF_GOOD;
+		console.info("CORNER_TILE_COEF_GOOD sum: " + sum.toString());
 	}
 
 	// eval based on other numbers, high numbers that should be close to the highest number
@@ -338,20 +352,33 @@ function eval(tiles) {
 	var k = 3;
 
 	while(k) {
+		var ok = false;
 		for(row = 1; row <= 4; row ++) {
 			for(column = 1; column <= 4; column ++) {
-				if(tiles[row][column] != null && sec_max.value < tiles[row][column] && maxs.indexOf(tiles[row][column]) == -1) {
+				if(tiles[row][column] != null && sec_max.value < tiles[row][column] && maxs.indexOf(tiles[row][column]) == -1 && tiles[row][column] >= 32) {
 					sec_max.value = tiles[row][column];
+					sec_max.x = row;
+					sec_max.y = column;
+					ok = true;
+				} else if(tiles[row][column] != null && sec_max.value == tiles[row][column] && 
+						Math.abs(max.x - row) == 1 && Math.abs(max.y - column) == 0 || Math.abs(max.x - row) == 0 && Math.abs(max.y - column) == 1) {
 					sec_max.x = row;
 					sec_max.y = column;
 				}
 			}
 		}
+		if(!ok) {
+			break;
+		}
 
-		if(Math.abs(max.x - sec_max.x) <= 1 && Math.abs(max.y - sec_max.y) == 0 || Math.abs(max.x - sec_max.x) == 0 && Math.abs(max.y - sec_max.y) <= 1) {
-			sum = sum * HIGH_NUMBERS_STICK_TOGETHER;
+		if(Math.abs(max.x - sec_max.x) == 1 && Math.abs(max.y - sec_max.y) == 0 || Math.abs(max.x - sec_max.x) == 0 && Math.abs(max.y - sec_max.y) == 1) {
+			// did the last part [((...))] because when small numbers are next to big nubers (e.g. 32 neat 512) it is not that relevant
+			sum = sum * HIGH_NUMBERS_STICK_TOGETHER * ((max.value / sec_max.value) / 70 + 1);
+			console.info("multiplied for HIGH_NUMBERS_STICK_TOGETHER with max: " + max.value.toString() + " and sec_max: " + sec_max.value.toString() + " sum: " + sum.toString());
 		} else {
 			sum = sum * HIGH_NUMBERS_DONT_STICK_TOGETHER;
+			console.info("multiplied for HIGH_NUMBERS_DONT_STICK_TOGETHER with max: " + max.value.toString() + " and sec_max: " + sec_max.value.toString() + " sum: " + sum.toString());
+			break;
 		}
 
 		maxs.push(sec_max.value);
@@ -359,10 +386,10 @@ function eval(tiles) {
 		sec_max = get_tile_obj();
 		k--;
 	}
-	console.info("maxs: " + maxs.toString());
 
 	// so that left would not be encouraged
 	if(tiles.direction == "left") {
+		console.info("multiplied for left");
 		sum = sum * DIRECTION_LEFT_COEF;
 	}
 
@@ -482,7 +509,7 @@ function build_tree(tiles, depth) {
 			l_obj.parent = current_node;
 			l_obj.no = no;
 			queue.push(l_obj);
-			// print_tiles_obj(l_obj);
+			print_tiles_obj(l_obj);
 			// console.info("parent: " + current_node.no);
 		}
 
@@ -493,7 +520,7 @@ function build_tree(tiles, depth) {
 			r_obj.parent = current_node;
 			r_obj.no = no;
 			queue.push(r_obj);
-			// print_tiles_obj(r_obj);
+			print_tiles_obj(r_obj);
 			// console.info("parent: " + current_node.no);
 		}
 
@@ -504,7 +531,7 @@ function build_tree(tiles, depth) {
 			u_obj.parent = current_node;
 			u_obj.no = no;
 			queue.push(u_obj);
-			// print_tiles_obj(u_obj);
+			print_tiles_obj(u_obj);
 			// console.info("parent: " + current_node.no);
 		}
 
@@ -515,7 +542,7 @@ function build_tree(tiles, depth) {
 			d_obj.parent = current_node;
 			d_obj.no = no;
 			queue.push(d_obj);
-			// print_tiles_obj(d_obj);
+			print_tiles_obj(d_obj);
 			// console.info("parent: " + current_node.no);
 		}
 
@@ -573,6 +600,16 @@ function get_path(tree) {
 	return path;
 }
 
+// you use this function to reevaluate the current path, in case anything bad happend
+function reeval_path(dirs) {
+	t = get_tiles();
+	for(var i in dirs) {
+		t = merge(dirs[i], t);
+	}
+
+	return eval(t);
+}
+
 
 var current_path = new Object();
 current_path.dirs = [];
@@ -581,14 +618,12 @@ var k = 2;
 var func = function()  {
 	latest_path = null;
 	tiles_wrk = get_tiles();
-	tree_wrk = build_tree(tiles_wrk, 5);
+	tree_wrk = build_tree(tiles_wrk, 7);
 	latest_path = get_path(tree_wrk);
 
-
-	console.info("current fit: " + current_path.fit);
-	console.info("current path: " + current_path.dirs.toString());
-
-	if(k == 0 || current_path == null || !current_path.dirs.length)  { // || current_path.fit < latest_path.fit
+	console.info("reeval_fit: " + reeval_path(current_path.dirs).toString());
+	console.info("current_fit: " + current_path.fit);
+	if(k == 0 || current_path == null || !current_path.dirs.length || latest_path.fit > reeval_path(current_path.dirs) * FIT_MAGNITUDE)  { // || current_path.fit < latest_path.fit
 		current_path = latest_path;
 		console.info("changed");
 		console.info("current fit: " + current_path.fit);
