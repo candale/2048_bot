@@ -12,15 +12,16 @@
 
 // keep these values between 0 and 1 for the coeficients that represent bad behaviour
 var CORNER_TILE_COEF_BAD = 0.1;
-var DIRECTION_LEFT_COEF = 0.8;
+var DIRECTION_LEFT_COEF = 0.5;
 var HIGH_NUMBERS_DONT_STICK_TOGETHER = 0.5;
 
 // keep these values over 1 for the coeficients that represnt good behaviour
-var CORNER_TILE_COEF_GOOD = 1.40;
+var CORNER_TILE_COEF_GOOD = 1.9;
 var HIGH_NUMBERS_STICK_TOGETHER = 1.1;
 
 // how many times large than the current fit must the new fit be to drop the old one
 var FIT_MAGNITUDE = 1.3;
+var once = false;
 
 /*
 
@@ -314,11 +315,11 @@ function eval(tiles) {
 
 	var no_tiles = 0;
 	var max = get_tile_obj();
-	var sum = 0;
+	var sum = 1;
 	for(row = 1; row <= 4; row ++) {
 		for(column = 1; column <= 4; column ++) {
 			if((val = tiles[row][column]) != null) {
-				sum += val * val / 2048;
+				//sum += val * val / 2048;
 				no_tiles++;
 
 				// for corner high tile
@@ -331,66 +332,65 @@ function eval(tiles) {
 		}
 	}
 	console.info("initial sum: " + sum.toString());
+	sum = sum * (8 / no_tiles);
 
-	// if the  highest number tile is not in the corner, apply CORNER_TILE_COEF_BAD
-	if( ! (max.x == 1 && max.y == 4 || max.x == 4 && max.y == 4)) {
-		sum =  sum * CORNER_TILE_COEF_BAD;
-		console.info("CORNER_TILE_COEF_BAD sum" + sum.toString());
-		// the more tiles there are on the board, the more discouraged is for the biggest tile to leave the corner
-		if(7 - no_tiles < 0) {
-			sum = sum * 1 / (7 - no_tiles) * -1;
-			console.info("there are more than seven tiles sum "  + sum.toString());
-		}
+	if (max_tile_in_corner(tiles)) {
+		sum *= CORNER_TILE_COEF_GOOD;
 	} else {
-		sum = sum * CORNER_TILE_COEF_GOOD;
-		console.info("CORNER_TILE_COEF_GOOD sum: " + sum.toString());
+		sum *= CORNER_TILE_COEF_BAD;
 	}
 
-	// eval based on other numbers, high numbers that should be close to the highest number
-	var sec_max = get_tile_obj();
-	var maxs = [max.value];
-	var k = 3;
-
-	while(k) {
-		var ok = false;
-		for(row = 1; row <= 4; row ++) {
-			for(column = 1; column <= 4; column ++) {
-				if(tiles[row][column] != null && sec_max.value < tiles[row][column] && maxs.indexOf(tiles[row][column]) == -1 && tiles[row][column] >= 32) {
-					sec_max.value = tiles[row][column];
-					sec_max.x = row;
-					sec_max.y = column;
-					ok = true;
-				} else if(tiles[row][column] != null && sec_max.value == tiles[row][column] && 
-						Math.abs(max.x - row) == 1 && Math.abs(max.y - column) == 0 || Math.abs(max.x - row) == 0 && Math.abs(max.y - column) == 1) {
-					sec_max.x = row;
-					sec_max.y = column;
-				}
+	var ok_line = true;
+	if(max.x == 1 && max.y == 4) { 
+		for (var column = 4; column > 1; row --) {
+			if(tiles[1][column] > tiles[1][column - 1]) {
+				ok_line = false;
 			}
 		}
-		if(!ok) {
-			break;
+		for(var row = 1; row < 4; row ++) {
+			if(tiles[row][4] > tiles[row + 1][4]) {
+				ok_line = false;
+			}
 		}
-
-		if(Math.abs(max.x - sec_max.x) == 1 && Math.abs(max.y - sec_max.y) == 0 || Math.abs(max.x - sec_max.x) == 0 && Math.abs(max.y - sec_max.y) == 1) {
-			// did the last part [((...))] because when small numbers are next to big nubers (e.g. 32 neat 512) it is not that relevant
-			sum = sum * HIGH_NUMBERS_STICK_TOGETHER * ((max.value / sec_max.value) / 70 + 1);
-			console.info("multiplied for HIGH_NUMBERS_STICK_TOGETHER with max: " + max.value.toString() + " and sec_max: " + sec_max.value.toString() + " sum: " + sum.toString());
-		} else {
-			sum = sum * HIGH_NUMBERS_DONT_STICK_TOGETHER;
-			console.info("multiplied for HIGH_NUMBERS_DONT_STICK_TOGETHER with max: " + max.value.toString() + " and sec_max: " + sec_max.value.toString() + " sum: " + sum.toString());
-			break;
+	}else if(max.x == 4 && max.y == 4)  {
+		for (var column = 4; column > 1; column --) {
+			if(tiles[4][column] > tiles[4][column - 1]) {
+				ok_line = false;
+			}
 		}
-
-		maxs.push(sec_max.value);
-		max = sec_max;
-		sec_max = get_tile_obj();
-		k--;
+		for(var row = 4; row > 1; row --) {
+			if(tiles[row][4] > tiles[row - 1][4]) {
+				ok_line = false;
+			}
+		}
+	}else if(max.y == 1 && max.x == 4) {
+		for (var column = 1; column < 4; column ++) {
+			if(tiles[1][column] > tiles[1][column + 1]) {
+				ok_line = false;
+			}
+		}
+		for(var row = 4; row > 1; row --) {
+			if(tiles[row][4] > tiles[row - 1][4]) {
+				ok_line = false;
+			}
+		}		
+	}else if(max.y == 1 && max.x == 1) {
+		for (var column = 1; column < 4; column ++) {
+			if(tiles[1][column] > tiles[1][column + 1]) {
+				ok_line = false;
+			}
+		}
+		for(var row = 4; row > 1; row --) {
+			if(tiles[row][4] > tiles[row - 1][4]) {
+				ok_line = false;
+			}
+		}	
 	}
 
-	// so that left would not be encouraged
-	if(tiles.direction == "left") {
-		console.info("multiplied for left");
-		sum = sum * DIRECTION_LEFT_COEF;
+	if(ok_line == true) {
+		sum *= 2.0;
+	} else {
+		sum *= 0.2;
 	}
 
 	return sum;
@@ -555,14 +555,56 @@ function build_tree(tiles, depth) {
 	return tree;
 }
 
+function max_tile_in_corner(tile) {
+
+	function get_tile_obj() {
+		var obj = new Object();
+		obj.x = 0;
+		obj.y = 0;
+		obj.value = 0;
+
+		return obj;
+	}
+
+	var max = get_tile_obj();
+	for(row = 1; row <= 4; row ++) {
+		for(column = 1; column <= 4; column ++) {
+			if((val = tile[row][column]) != null) {
+				// for corner high tile
+				if(max.value < tile[row][column]) {
+					max.value = tile[row][column];
+					max.x = row;
+					max.y = column;
+				}
+			}
+		}
+	}
+
+	if( ! (max.x == 1 && max.y == 4 || max.x == 4 && max.y == 4)) {
+		return false;
+	} else {
+		return true;
+	}
+}
+
 function get_path(tree) {
-	console.debug(tree);
 	var queue = [tree];
 	var max_node = get_node(get_tiles_template());
+	var last = null;
 	var no = 0;
+
 	while(queue.length) {
-		no++;
+
 		var current = queue.shift();
+		if(!max_tile_in_corner(current.tiles) && ! once) {
+			once = true;
+			continue;
+		}
+
+		if(last != null)
+			current.added_fit = last.fit + current.fit;
+		else
+			current.added_fit = current.fit;
 
 		if(max_node.fit < current.fit) {
 			max_node = current;
@@ -583,6 +625,8 @@ function get_path(tree) {
 		if(current.left != null)  {
 			queue.push(current.left);
 		}
+
+		last = current;
 	}
 
 	var path = new Object();
@@ -590,15 +634,19 @@ function get_path(tree) {
 	path.fit = max_node.fit;
 	// console.debug(max_node);
 	// print_tiles_obj(max_node);
+	var depth = 1;
 	while(max_node != null) {
-		console.info(1);
+		// console.info(1);
 		path.dirs.unshift(max_node.direction);
 		max_node = max_node.parent;
+		depth ++;
 	}
+	console.info("depth: " + depth.toString());
 	path.dirs.shift();
 
 	return path;
 }
+
 
 // you use this function to reevaluate the current path, in case anything bad happend
 function reeval_path(dirs) {
